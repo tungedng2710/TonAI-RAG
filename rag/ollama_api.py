@@ -15,11 +15,16 @@ def ollama_stream_inference(
     """
     assert url is not None
     assert model is not None
-
+    
     payload = {
-        "model": model,
-        "prompt": prompt
+        "model": model
     }
+    task = url.split('api/')[-1]
+    if task == "embed":
+        payload["input"] = prompt
+    else:
+        payload["prompt"] = prompt
+
     if image_path is not None and image_path != "":
         payload["images"] = [encode_image_to_base64(image_path)]
 
@@ -30,7 +35,10 @@ def ollama_stream_inference(
     with requests.post(url, json=payload, stream=True) as resp:
         # Raise an error if the request is not 200 OK
         resp.raise_for_status()
-
+        
+        if task == "embed":
+            return resp.json()["embeddings"]
+        
         # Iterate over each line that Ollama sends back
         for line in resp.iter_lines(decode_unicode=True):
             if not line:
@@ -61,6 +69,7 @@ def ollama_stream_inference(
     # print("\n\n---\nComplete response:\n", full_response)
     return full_response
 
+
 def encode_image_to_base64(image_path: str) -> str:
     """
     Convert an image file to a base64 encoded string.
@@ -75,11 +84,19 @@ def encode_image_to_base64(image_path: str) -> str:
         return base64.b64encode(image_file.read()).decode('utf-8')
 
 
-# Example usage
 if __name__ == "__main__":
+    # # For generative models
+    # full_response = ollama_stream_inference(
+    #     prompt ="Why is the sky blue?",
+    #     model = "gemma3:27b",
+    #     url = "http://0.0.0.0:7860/api/generate"
+    # )
+    
+    # For embedding models
     full_response = ollama_stream_inference(
         prompt ="Why is the sky blue?",
-        model = "gemma3:27b",
-        url = "http://27.66.108.30:7860/api/generate"
+        model = "nomic-embed-text",
+        url = "http://0.0.0.0:7860/api/embed"
     )
+    
     print(full_response)
